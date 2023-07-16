@@ -3,6 +3,7 @@ import json
 import math
 import os
 from os import path
+from concurrent.futures import ProcessPoolExecutor
 
 import customtkinter
 from PIL import Image
@@ -516,6 +517,15 @@ class BookFrame(customtkinter.CTkScrollableFrame):
             self.current_tab -= 1
             self.load_tab(tag_json, authors_json)
 
+    def _create_book(self, book_json_entry) -> Book:
+        return Book(
+            book_json_entry["path"],
+            book_json_entry["name"],
+            book_json_entry["author"],
+            book_json_entry["link"],
+            book_json_entry["tagged"],
+        )
+
     def load_tab(self, tag_json: str, authors_json: str):
         # if the library already has books, destroy them
         for i in self.book_buttons:
@@ -538,33 +548,24 @@ class BookFrame(customtkinter.CTkScrollableFrame):
         tab_count = math.ceil(self.book_count / self.books_per_page)
 
         if self.book_count != 0:
+            books_json_to_load = []
             # put the current books into the array
             if self.current_tab != self.get_tab_count() - 1:
                 while loopy < self.books_per_page:
-                    books.append(
-                        Book(
-                            books_json["book"][index_to_start_at]["path"],
-                            books_json["book"][index_to_start_at]["name"],
-                            books_json["book"][index_to_start_at]["author"],
-                            books_json["book"][index_to_start_at]["link"],
-                            books_json["book"][index_to_start_at]["tagged"],
-                        )
-                    )
+                    books_json_to_load.append(
+                            books_json["book"][index_to_start_at])
                     loopy += 1
                     index_to_start_at += 1
             else:
                 while loopy < self.excess_books:
-                    books.append(
-                        Book(
-                            books_json["book"][index_to_start_at]["path"],
-                            books_json["book"][index_to_start_at]["name"],
-                            books_json["book"][index_to_start_at]["author"],
-                            books_json["book"][index_to_start_at]["link"],
-                            books_json["book"][index_to_start_at]["tagged"],
-                        )
-                    )
+                    books_json_to_load.append(
+                            books_json["book"][index_to_start_at])
                     loopy += 1
                     index_to_start_at += 1
+
+            with ProcessPoolExecutor() as executor:
+                for book in executor.map(self._create_book, books_json_to_load):
+                    books.append(book)
 
         # create the buttons
         counter = 0
