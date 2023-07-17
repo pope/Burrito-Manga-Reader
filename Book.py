@@ -1,9 +1,10 @@
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Executor, wait
 
 import customtkinter
 from PIL import Image, ImageDraw
 
+from Database import VALID_IMAGES
 
 class Book:
 
@@ -40,23 +41,22 @@ class Book:
         return customtkinter.CTkImage(dark_image=img, size=size)
 
     # if you need the pages as thumbnail size, set `is_thumbnail` to True
-    def get_pages(self, is_thumbnail: bool):
+    def get_pages(self, is_thumbnail: bool, executor: Executor):
 
         # load pages
-        valid_images = [".jpg", ".png"]
 
-        files = [
-            f for f in os.listdir(self.path)
-            if os.path.splitext(f)[1].lower() in valid_images
+        futures = [
+            executor.submit(lambda f: self._get_page(f, is_thumbnail), f)
+            for f in os.listdir(self.path)
+            if os.path.splitext(f)[1].lower() in VALID_IMAGES
         ]
-        with ThreadPoolExecutor() as executor:
-            return [
-                image for image in executor.map(
-                    lambda f: self._get_page(f, is_thumbnail), files)
-            ]
+        wait(futures)
+        return [
+            f.result()
+            for f in futures
+        ]
 
     def get_full_cover(self):
-        VALID_IMAGES = (".jpg", ".png")
         LANDSCAPE_COVER = (550, 400)
         PORTRAIT_COVER = (350, 500)
         cover_im = None
@@ -95,9 +95,6 @@ class Book:
         im.putalpha(alpha)
         return im
 
-    def get_cover_width(self):
-        self.cover.cget("size")
-
     def __init__(self, path: str, name: str, author: str, link: str, tagged: list[str]):
         self.path = path
         self.name = name
@@ -107,7 +104,6 @@ class Book:
         self.cover = None
         LANDSCAPE_COVER = (300, 250)
         PORTRAIT_COVER = (250, 350)
-        VALID_IMAGES = (".jpg", ".png")
 
         cover_im = None
         if self.path != '':

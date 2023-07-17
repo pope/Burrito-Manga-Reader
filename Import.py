@@ -9,7 +9,7 @@ from PIL import Image
 
 from Book import Book
 from CTkScrollableDropdown import *
-from Database import black, dark_pink, light_pink
+from Database import black, dark_pink, light_pink, VALID_IMAGES
 from Functions import *
 
 
@@ -63,13 +63,12 @@ class ImportWindow(customtkinter.CTkToplevel):
         self.after(1, self.focus_import)
 
         images = []
-        valid_images = [".jpg", ".png"]
 
         # IDK how to get the first image in this path so.... this works... :shrug:
         if self.path != '':
             for f in os.listdir(self.path):
                 ext = os.path.splitext(f)[1]
-                if ext.lower() not in valid_images:
+                if ext.lower() not in VALID_IMAGES:
                     continue
                 images.append(Image.open(os.path.join(self.path, f)))
                 break

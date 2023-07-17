@@ -5,7 +5,7 @@ import os
 import time
 from os import path
 import customtkinter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait, Executor
 
 from Book import Book
 from CTkScrollableDropdown import CTkScrollableDropdown
@@ -103,7 +103,7 @@ class BookFrame(customtkinter.CTkScrollableFrame):
             self.reader_window.grid_columnconfigure(2, weight=1)
 
             # get pages
-            self.page_list = book.get_pages(False)
+            self.page_list = book.get_pages(False, self.executor)
 
             # counting shit
             self.current_page_num = 0
@@ -348,7 +348,7 @@ class BookFrame(customtkinter.CTkScrollableFrame):
                 self.book_window, width=1850, height=440)
 
             # get pages
-            page_thumbs = book.get_pages(True)
+            page_thumbs = book.get_pages(True, self.executor)
 
             tag_checks: list[customtkinter.CTkCheckBox] = []
 
@@ -484,9 +484,10 @@ class BookFrame(customtkinter.CTkScrollableFrame):
                     loopy += 1
                     index_to_start_at += 1
 
-            with ThreadPoolExecutor() as executor:
-                for book in executor.map(_create_book, books_json_to_load):
-                    books.append(book)
+            futures = [self.executor.submit(_create_book, b) for b in books_json_to_load]
+            wait(futures)
+            for f in futures:
+                books.append(f.result())
 
         # create the buttons
         counter = 0
@@ -770,8 +771,10 @@ class BookFrame(customtkinter.CTkScrollableFrame):
         # round up
         return math.ceil(self.book_count / self.books_per_page)
 
-    def __init__(self, library_json: str, tag_json: str, authors_json: str, master: customtkinter.CTk, **kwargs):
+    def __init__(self, library_json: str, tag_json: str, authors_json: str, master: customtkinter.CTk, executor: Executor, **kwargs):
         super().__init__(master, **kwargs)
+
+        self.executor = executor
 
         # keyboard.clear_all_hotkeys()
 
